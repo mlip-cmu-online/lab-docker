@@ -7,7 +7,8 @@ In this lab, you will containerize a machine learning training pipeline and infe
 
  - [ ] **Deliverable 1**: The training script has been run in a container and the resulting model is saved to a shared volume. Able to explain why Docker is useful for reproducibility and portability in ML training scenarios.
 
- - [ ] **Deliverable 2**: Containerize the inference service to serve predictions on a specific port and show the `./logs/predictions.log` file on your host to the TA.  Explain what the Dockerfile is and how it helps containerize the inference service.
+ - [ ] **Deliverable 2**: Containerize the inference service to serve predictions on a specific port and save the host-side `./logs/predictions.log` file as evidence.
+       Explain what the Dockerfile is and how it helps containerize the inference service.
 
  - [ ] **Deliverable 3**: Call the inference service health endpoint before and after destroying the named volume to demonstrate how model availability changes. Explain the difference between named volumes and bind mounts in Docker.
 
@@ -183,7 +184,8 @@ To fully reset the environment and delete the model:
 ```bash
 docker compose down -v
 ```
-The -v flag wipes the Named Volume. Now run up the inference container again, and verify the health again, discuss your results with the TA.
+The `-v` flag deletes the named volume.
+Start the inference container again, repeat the health check, and record what changed and why.
 
 
 ## Additional Resources
