@@ -13,6 +13,36 @@ In this lab, you will containerize a machine learning training pipeline and infe
  - [ ] **Deliverable 3**: Call the inference service health endpoint before and after destroying the named volume to demonstrate how model availability changes. Explain the difference between named volumes and bind mounts in Docker.
 
 
+## Generate the Submission Report
+
+Complete the lab at a committed repository revision, then save the raw terminal and HTTP evidence while Docker is running. Use plain-text or JSON files with these contents:
+
+- the training image build/run output, including `Training complete` and `Model saved`;
+- the inference image build/service output, including the inference service startup;
+- raw JSON from `docker volume inspect wine_model_storage`;
+- one JSON prediction response and the corresponding host-side `./logs/predictions.log`;
+- raw JSON health responses from before and after `docker compose down -v`.
+
+For example, use `tee` on the build, run, Compose, and `curl` commands as you complete the steps below, and copy the host-side prediction log into your evidence directory. Do not paste credentials into any evidence file. Then run this command from the repository root, replacing the example paths:
+
+```shell
+python3 scripts/generate-docker-submission.py \
+  --learner "Your name" \
+  --repository-url "https://github.com/your-account/lab-docker" \
+  --training-output evidence/training-build-run.txt \
+  --service-output evidence/inference-build-service.txt \
+  --volume-inspection evidence/volume-inspect.json \
+  --prediction-response evidence/prediction.json \
+  --prediction-log evidence/predictions.log \
+  --health-before evidence/health-before.json \
+  --health-after evidence/health-after.json
+```
+
+Open `submission/docker-report.html` and correct every item marked `missing` before uploading it to Canvas. Keep `submission/docker-manifest.json` with the raw evidence. Submit a link to the exact commit shown in the report, not merely a branch URL.
+
+The command reads local files and Git metadata only. It does not build an image, start a container, contact GitHub, or call the service. It checks that the required source files are committed and unchanged, checks the expected Dockerfile and Compose structure, and matches the saved volume, prediction/log, and before/after health evidence. Answer the persistence and reproducibility interpretation questions separately in Canvas; the checker does not decide whether those answers are correct.
+
+
 ## Step 0: Setup Docker
 
 Install Docker on your system and verify your installation:
