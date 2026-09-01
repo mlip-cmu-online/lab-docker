@@ -18,7 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 REPORT_NAME = "docker-report.html"
 MANIFEST_NAME = "docker-manifest.json"
-CHECKER_VERSION = "1.0"
+CHECKER_VERSION = "1.1"
 SOURCE_PATHS = (
     "docker/training/Dockerfile",
     "docker/training/requirements.txt",
@@ -164,11 +164,13 @@ def completed_inference_files(files: dict[str, str]) -> tuple[bool, str]:
         server,
         (
             r"joblib\.load\s*\(",
+            r"os\.path\.exists\s*\(",
             r"request\.get_json\s*\(",
             r"[\[\(]['\"]input['\"][\]\)]",
             r"\.predict\s*\(",
             r"open\s*\([^\n]*LOG_PATH[^\n]*(?:['\"]a['\"]|mode\s*=\s*['\"]a['\"])",
             r"@app\.route\s*\(\s*['\"]/health['\"]",
+            r"model\s+is\s+not\s+None",
         ),
     ) and not has_executable_ellipsis(server)
     ok = dockerfile_ok and requirements_ok and server_ok
@@ -187,11 +189,12 @@ def completed_compose(text: str) -> tuple[bool, str]:
             r"docker/inference/Dockerfile",
             r"(?:^|[\s'\"])(?:\./)?logs\s*:\s*/app/logs(?:$|[\s'\"])",
             r"8081\s*:\s*8080",
+            r"^\s+name\s*:\s*wine_model_storage\s*$",
             r"^volumes\s*:\s*$",
         ),
     ) and len(re.findall(r"wine_model_storage\s*:\s*/app/models", uncommented)) >= 2
     ok = ok and len(re.findall(r"wine_model_storage\s*:", uncommented)) >= 3
-    return ok, "Compose defines both builds, the shared named volume, host log bind mount, port mapping, and top-level volume." if ok else "Complete both Compose services, both model mounts, the log bind mount, 8081:8080 mapping, and named-volume definition."
+    return ok, "Compose defines both builds, the shared explicitly named volume, host log bind mount, port mapping, and top-level volume." if ok else "Complete both Compose services, both model mounts, the log bind mount, 8081:8080 mapping, and the explicit wine_model_storage volume name."
 
 
 def volume_record(value: Any) -> Optional[dict[str, Any]]:

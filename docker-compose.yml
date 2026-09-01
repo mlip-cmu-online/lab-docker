@@ -22,10 +22,12 @@ services:
     # TODO: Expose port 8080 for the Flask app
     ports:
       -
-    # Ensure that the inference service starts after the training service
+    # Wait for successful training so inference cannot race the model write.
     depends_on:
-      - training
+      training:
+        condition: service_completed_successfully
     restart: on-failure
 
-# TODO: Define the named volume 'wine_model_storage'
+# TODO: Define the named volume 'wine_model_storage'. Give it the explicit
+# name 'wine_model_storage' so the Compose and docker-run steps share it.
 volumes:

@@ -11,7 +11,8 @@ LOG_PATH = "/app/logs/predictions.log"
 
 model = None
 
-# TODO: Load the trained model from the shared volume. Use joblib.load() with MODEL_PATH
+# TODO: Load the trained model when MODEL_PATH exists; otherwise leave model as None.
+# The missing-model case must still let the server start so /health can report it.
 model = ...
 
 # Wine feature names for reference (13 features):
@@ -22,6 +23,9 @@ model = ...
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
+        if model is None:
+            return jsonify({"error": "model not found"}), 503
+
         # TODO: Get the input array from the request JSON body
         # The request body should have a key "input" with a list of 13 feature values
         data = request.get_json()
@@ -59,4 +63,4 @@ def health():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True, port=8080, host='0.0.0.0')
+    app.run(port=8080, host='0.0.0.0')

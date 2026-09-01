@@ -1,3 +1,4 @@
 submission/
+.mlip-docker-preflight.*/
 __pycache__/
 *.py[cod]

@@ -79,20 +79,24 @@ class GenerateDockerSubmissionTest(unittest.TestCase):
         self._write("docker/inference/server.py", """
             from flask import Flask, request
             import joblib
+            import os
             app = Flask(__name__)
             MODEL_PATH = "/app/models/wine_model.pkl"
             LOG_PATH = "/app/logs/predictions.log"
             # Example input excerpt: [13.2, 1.78, ...]
-            model = joblib.load(MODEL_PATH)
+            model = joblib.load(MODEL_PATH) if os.path.exists(MODEL_PATH) else None
             @app.route('/predict', methods=['POST'])
             def predict():
+                if model is None:
+                    return {"error": "model not found"}, 503
                 features = request.get_json()["input"]
                 prediction = model.predict([features])
                 with open(LOG_PATH, "a") as stream:
                     stream.write(f"input: {features} | prediction: {prediction[0]}")
             @app.route('/health')
             def health():
-                return {"status": "healthy", "model_loaded": model is not None}
+                exists = os.path.exists(MODEL_PATH)
+                return {"status": "healthy" if exists else "model not found", "model_loaded": model is not None}
         """)
         self._write("docker-compose.yml", """
             services:
@@ -113,6 +117,7 @@ class GenerateDockerSubmissionTest(unittest.TestCase):
                   - "8081:8080"
             volumes:
               wine_model_storage:
+                name: wine_model_storage
         """)
         run("git", "add", ".", cwd=self.root)
         run("git", "commit", "-m", "complete lab", cwd=self.root)
@@ -187,6 +192,27 @@ class GenerateDockerSubmissionTest(unittest.TestCase):
         checks = {item["name"]: item["status"] for item in manifest["checks"]}
         self.assertEqual(checks["immutable_repository_revision"], "present")
         self.assertEqual(checks["completed_inference_files"], "missing")
+
+    def test_requires_compose_to_use_the_documented_volume_name(self) -> None:
+        compose = self.root / "docker-compose.yml"
+        compose.write_text(
+            compose.read_text(encoding="utf-8").replace(
+                "    name: wine_model_storage\n", ""
+            ),
+            encoding="utf-8",
+        )
+        run("git", "commit", "-am", "omit stable volume name", cwd=self.root)
+
+        result = self.generate()
+
+        self.assertEqual(result.returncode, 1)
+        manifest = json.loads(
+            (self.root / "submission" / "docker-manifest.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        checks = {item["name"]: item["status"] for item in manifest["checks"]}
+        self.assertEqual(checks["compose_configuration"], "missing")
 
     def test_flags_and_withholds_plaintext_credentials(self) -> None:
         secret = "ghp_abcdefghijklmnopqrstuvwxyz123456"
