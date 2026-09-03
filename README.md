@@ -1,4 +1,4 @@
-# Lab 5: Containerizing ML Models with Docker
+# Lab: Containerizing ML Models with Docker
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/mlip-cmu-online/lab-docker?quickstart=1)
 
