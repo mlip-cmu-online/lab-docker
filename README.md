@@ -10,39 +10,10 @@ In this lab, you will containerize a machine learning training pipeline and infe
 
 - [ ] **Deliverable 1**: The training script has been run in a container and the resulting model is saved to a shared volume. Able to explain why Docker is useful for reproducibility and portability in ML training scenarios.
 
-- [ ] **Deliverable 2**: Containerize the inference service to serve predictions on a specific port and save the host-side `./logs/predictions.log` file as evidence.
+- [ ] **Deliverable 2**: Containerize the inference service to serve predictions on a specific port and verify that the host-side `./logs/predictions.log` file is created.
        Explain what the Dockerfile is and how it helps containerize the inference service.
 
 - [ ] **Deliverable 3**: Call the inference service health endpoint before and after destroying the named volume to demonstrate how model availability changes. Explain the difference between named volumes and bind mounts in Docker.
-
-## Generate the Submission Report
-
-Complete the lab at a committed repository revision, then save the raw terminal and HTTP evidence while Docker is running. Use plain-text or JSON files with these contents:
-
-- the training image build/run output, including `Training complete` and `Model saved`;
-- the inference image build/service output, including the inference service startup;
-- raw JSON from `docker volume inspect wine_model_storage`;
-- one JSON prediction response and the corresponding host-side `./logs/predictions.log`;
-- raw JSON health responses from before and after `docker compose down -v`.
-
-For example, use `tee` on the build, run, Compose, and `curl` commands as you complete the steps below, and copy the host-side prediction log into your evidence directory. Do not paste credentials into any evidence file. Then run this command from the repository root, replacing the example paths:
-
-```shell
-python3 scripts/generate-docker-submission.py \
-  --learner "Your name" \
-  --repository-url "https://github.com/your-account/lab-docker" \
-  --training-output evidence/training-build-run.txt \
-  --service-output evidence/inference-build-service.txt \
-  --volume-inspection evidence/volume-inspect.json \
-  --prediction-response evidence/prediction.json \
-  --prediction-log evidence/predictions.log \
-  --health-before evidence/health-before.json \
-  --health-after evidence/health-after.json
-```
-
-Open `submission/docker-report.html` and correct every item marked `missing` before uploading it to Canvas. Keep `submission/docker-manifest.json` with the raw evidence. Submit a link to the exact commit shown in the report, not merely a branch URL.
-
-The command reads local files and Git metadata only. It does not build an image, start a container, contact GitHub, or call the service. It checks that the required source files are committed and unchanged, checks the expected Dockerfile and Compose structure, and matches the saved volume, prediction/log, and before/after health evidence. Answer the persistence and reproducibility interpretation questions separately in Canvas; the checker does not decide whether those answers are correct.
 
 ## Step 0: Open the Lab Environment
 
@@ -93,11 +64,8 @@ Open `docker/training/Dockerfile`. It is nearly complete. Fill in the TODO to se
 Build the training image and run it, mounting a **named volume** for model storage:
 
 ```bash
-mkdir -p ./evidence
-docker build -t mlip-training -f docker/training/Dockerfile . \
-  2>&1 | tee evidence/training-build-run.txt
-docker run --rm -v wine_model_storage:/app/models mlip-training \
-  2>&1 | tee -a evidence/training-build-run.txt
+docker build -t mlip-training -f docker/training/Dockerfile .
+docker run --rm -v wine_model_storage:/app/models mlip-training
 ```
 
 You should see output showing the test accuracy and a message that the model was saved.
@@ -164,8 +132,7 @@ Send a prediction request (13 Wine features):
 ```bash
 curl -X POST http://localhost:8081/predict \
   -H 'Content-Type: application/json' \
-  -d '{"input": [13.2, 1.78, 2.14, 11.2, 100, 2.65, 2.76, 0.26, 1.28, 4.38, 1.05, 3.40, 1050]}' \
-  | tee evidence/prediction.json
+  -d '{"input": [13.2, 1.78, 2.14, 11.2, 100, 2.65, 2.76, 0.26, 1.28, 4.38, 1.05, 3.40, 1050]}'
 ```
 
 Test error handling with a bad request:
@@ -177,11 +144,6 @@ curl -X POST http://localhost:8081/predict \
 ```
 
 After sending predictions, check your local `./logs/` directory — you should see a `predictions.log` file with timestamped entries. This is the bind mount in action: the container writes to `/app/logs/` and the file appears on your host filesystem.
-Copy it to `evidence/predictions.log` after the successful prediction so the report generator reads the same log state you inspected.
-
-```bash
-cp ./logs/predictions.log evidence/predictions.log
-```
 
 ## Step 3: Docker Compose
 
@@ -197,14 +159,12 @@ You need to fill in:
 
 Give the top-level volume the explicit name `wine_model_storage`, as well as using that key in both service mounts. This keeps the standalone `docker run` commands, Compose, `docker volume inspect wine_model_storage`, and volume-removal exercise focused on the same Docker-managed volume.
 
-Then run Compose in the background so you can issue the evidence commands in the same terminal:
+Then run Compose in the background:
 
 ```bash
-mkdir -p ./logs ./evidence
-docker compose up --build -d \
-  2>&1 | tee evidence/inference-build-service.txt
-docker compose logs training inference \
-  2>&1 | tee -a evidence/inference-build-service.txt
+mkdir -p ./logs
+docker compose up --build -d
+docker compose logs training inference
 ```
 
 After both services start, test with the same curl commands from Step 2d. Verify that:
@@ -228,7 +188,7 @@ Check where Docker physically stores your model on the host:
 
 ```bash
 docker volume ls
-docker volume inspect wine_model_storage | tee evidence/volume-inspect.json
+docker volume inspect wine_model_storage
 ```
 
 Observe the `Mountpoint` field. This is a Docker-managed path on the lab's Docker host: the Codespace/DevContainer environment on the recommended route, or your local machine on the fallback. It is not the bind-mounted repository `./logs` directory.
@@ -242,7 +202,7 @@ Start both containers to run training and inference:
 ```bash
 docker compose up --build -d
 until curl --silent --output /dev/null http://localhost:8081/health; do sleep 1; done
-curl --silent --show-error http://localhost:8081/health | tee evidence/health-before.json
+curl --silent --show-error http://localhost:8081/health
 ```
 
 The response must report `"status":"healthy"` and `"model_loaded":true`.
@@ -269,12 +229,12 @@ To fully reset the environment and delete the model:
 docker compose down -v
 ```
 
-The `-v` flag deletes the named volume. Start inference without training so Compose creates a new, empty named volume, then save the changed health response:
+The `-v` flag deletes the named volume. Start inference without training so Compose creates a new, empty named volume, then observe the changed health response:
 
 ```bash
 docker compose up -d inference --no-deps
 until curl --silent --output /dev/null http://localhost:8081/health; do sleep 1; done
-curl --silent --show-error http://localhost:8081/health | tee evidence/health-after.json
+curl --silent --show-error http://localhost:8081/health
 test -f ./logs/predictions.log && tail ./logs/predictions.log
 docker compose down -v
 ```
